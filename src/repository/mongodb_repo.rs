@@ -2,6 +2,9 @@ use std::env;
 extern crate dotenv;
 use dotenv::dotenv;
 
+extern crate bcrypt;
+use bcrypt::{hash, DEFAULT_COST};
+
 use crate::models::user_model::User;
 use mongodb::bson::extjson::de::Error;
 use mongodb::{
@@ -38,12 +41,19 @@ impl MongoRepo {
     /// * `new_user` - Um novo usuário a ser criado.
     /// # Returns
     /// * `Result<InsertOneResult, Error>` - Um resultado de inserção de um documento no MongoDB.
+    /// * `Error` - Caso ocorra algum erro.
+    /// * `InsertOneResult` - Caso o usuário seja criado.
+    /// * `Status::InternalServerError` - Caso ocorra algum erro interno.
+    /// * `Status::Ok` - Caso o usuário seja criado com sucesso.
+    /// * `Status::BadRequest` - Caso o id seja vazio.
+    /// * `Status::NotFound` - Caso o usuário não seja encontrado.
     pub fn create(&self, new_user: User) -> Result<InsertOneResult, Error> {
+        let hashed_password = hash(new_user.password, DEFAULT_COST).unwrap();
         let new_doc = User {
             id: None,
             name: new_user.name,
             email: new_user.email,
-            password: new_user.password,
+            password: hashed_password,
         };
 
         let user = self.col.insert_one(new_doc, None).ok().expect("Failed to insert User.");
